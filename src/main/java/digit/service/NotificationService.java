@@ -25,13 +25,15 @@ public class NotificationService {
     @Autowired
     private RestTemplate restTemplate;
 
-    private static final String smsTemplate = "Dear {NAME}, your birth registration application has been successfully created on the system with application number - {APPNUMBER}.";
+    private static final String smsTemplate = "Dear {FATHER_NAME} and {MOTHER_NAME} your birth registration application has been successfully created on the system with application number - {APPNUMBER}.";
 
     public void prepareEventAndSend(BirthRegistrationRequest request){
         List<SMSRequest> smsRequestList = new ArrayList<>();
         request.getBirthRegistrationApplications().forEach(application -> {
-            SMSRequest smsRequest = SMSRequest.builder().mobileNumber(application.getFatherMobileNumber()).message(getCustomMessage(smsTemplate, application)).build();
-            smsRequestList.add(smsRequest);
+            SMSRequest smsRequestForFather = SMSRequest.builder().mobileNumber(application.getFatherMobileNumber()).message(getCustomMessage(smsTemplate, application)).build();
+            SMSRequest smsRequestForMother = SMSRequest.builder().mobileNumber(application.getMotherMobileNumber()).message(getCustomMessage(smsTemplate, application)).build();
+            smsRequestList.add(smsRequestForFather);
+            smsRequestList.add(smsRequestForMother);
         });
         for (SMSRequest smsRequest : smsRequestList) {
             producer.push(config.getSmsNotificationTopic(), smsRequest);
@@ -41,7 +43,8 @@ public class NotificationService {
 
     private String getCustomMessage(String template, BirthRegistrationApplication application) {
         template = template.replace("{APPNUMBER}", application.getApplicationNumber());
-        template = template.replace("{NAME}", application.getFather().getName());
+        template = template.replace("{FATHER_NAME}", application.getFather().getName());
+        template = template.replace("{MOTHER_NAME}", application.getMother().getName());
         return template;
     }
 

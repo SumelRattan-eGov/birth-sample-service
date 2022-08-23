@@ -37,12 +37,23 @@ public class UserService {
         request.getBirthRegistrationApplications().forEach(application -> {
             if(!StringUtils.isEmpty(application.getFather().getId()))
                 enrichUser(application, request.getRequestInfo());
-            else
-                upsertUser(application, request.getRequestInfo());
+            else {
+                User user = createFatherUser(application);
+                upsertUser(user, request.getRequestInfo());
+            }
+        });
+
+        request.getBirthRegistrationApplications().forEach(application -> {
+            if(!StringUtils.isEmpty(application.getMother().getId()))
+                enrichUser(application, request.getRequestInfo());
+            else {
+                User user = createMotherUser(application);
+                upsertUser(user, request.getRequestInfo());
+            }
         });
     }
 
-    private void upsertUser(BirthRegistrationApplication application, RequestInfo requestInfo){
+    private User createFatherUser(BirthRegistrationApplication application){
         FatherApplicant father = application.getFather();
         User user = User.builder().userName(father.getUserName())
                 .mobileNumber(father.getMobileNumber())
@@ -50,7 +61,24 @@ public class UserService {
                 .altContactNumber(father.getAltContactNumber())
                 .tenantId(father.getTenantId())
                 .build();
-        String tenantId = father.getTenantId();
+//        String tenantId = father.getTenantId();
+        return user;
+    }
+
+    private User createMotherUser(BirthRegistrationApplication application){
+        MotherApplicant mother = application.getMother();
+        User user = User.builder().userName(mother.getUserName())
+                .mobileNumber(mother.getMobileNumber())
+                .emailId(mother.getEmailId())
+                .altContactNumber(mother.getAltContactNumber())
+                .tenantId(mother.getTenantId())
+                .build();
+//        String tenantId = father.getTenantId();
+        return user;
+    }
+    private String upsertUser(User user, RequestInfo requestInfo){
+
+        String tenantId = user.getTenantId();
         User userServiceResponse = null;
 
         // Search on mobile number as user name
@@ -67,21 +95,27 @@ public class UserService {
         }
 
         // Enrich the accountId
-        father.setId(userServiceResponse.getUuid());
+       // user.setId(userServiceResponse.getUuid());
+        return userServiceResponse.getUuid();
     }
 
 
     private void enrichUser(BirthRegistrationApplication application, RequestInfo requestInfo){
-
-        String accountId = application.getFather().getId();
+        String accountIdFather = application.getFather().getId();
+        String accountIdMother = application.getMother().getId();
         String tenantId = application.getTenantId();
 
-        UserDetailResponse userDetailResponse = searchUser(userUtils.getStateLevelTenant(tenantId),accountId,null);
-
-        if(userDetailResponse.getUser().isEmpty())
+        UserDetailResponse userDetailResponseFather = searchUser(userUtils.getStateLevelTenant(tenantId),accountIdFather,null);
+        UserDetailResponse userDetailResponseMother = searchUser(userUtils.getStateLevelTenant(tenantId),accountIdMother,null);
+        if(userDetailResponseFather.getUser().isEmpty())
             throw new CustomException("INVALID_ACCOUNTID","No user exist for the given accountId");
 
-        else application.getFather().setId(userDetailResponse.getUser().get(0).getUuid());
+        else application.getFather().setId(userDetailResponseFather.getUser().get(0).getUuid());
+
+        if(userDetailResponseMother.getUser().isEmpty())
+            throw new CustomException("INVALID_ACCOUNTID","No user exist for the given accountId");
+
+        else application.getMother().setId(userDetailResponseMother.getUser().get(0).getUuid());
 
     }
 
